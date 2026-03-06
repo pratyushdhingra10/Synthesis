@@ -1,7 +1,7 @@
 module lexi_split_top #(
     parameter E = 32,
     parameter P = 64,
-    parameter LAT_WIDTH = 16,
+    parameter LAT_WIDTH = 24,
     parameter PE_WIDTH = 7
 )(
     input  logic                 clk,
@@ -14,7 +14,8 @@ module lexi_split_top #(
     output logic [LAT_WIDTH-1:0] bottleneck_c
 );
 
-    localparam int R_MAX = 32;
+    // Phase-2 wrapper is built as a P-stage pipeline.
+    localparam int R_MAX = P;
 
     // Interconnect signals between Phase 1 and Phase 2
     logic                 phase1_done;
@@ -34,7 +35,7 @@ module lexi_split_top #(
         .clk(clk),
         .rst_n(rst_n),
         .start(start),
-        .tokens_t(tokens_t),
+        .tokens(tokens_t),
         .done(phase1_done),
         .alloc_r(alloc_r_star),
         .bottleneck_c(bottleneck_c)
