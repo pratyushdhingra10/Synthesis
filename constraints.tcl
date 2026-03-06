@@ -11,21 +11,10 @@ analyze -format sverilog {
     expert_eval_unit.sv 
     adder_tree_32.sv 
     lexi_split_phase1.sv
-    greedy_stage.sv
     lexi_split_phase2.sv
     lexi_split_top.sv
 }
 elaborate lexi_split_top
-
-# tree          -> adder_tree_32 module
-# eval          -> expert_eval_unit module
-# PE_ALLOCATION -> lexi_split_phase1 module
-# phase2        -> greedy_stage + lexi_split_phase2 modules
-# top           -> lexi_split_top module
-
-# -------------------------------------------------------------------------
-# LexiSplit RTL Synthesis Script
-# -------------------------------------------------------------------------
 
 
 # 2. Clock Constraints (1.0 ns period = 1 GHz)
