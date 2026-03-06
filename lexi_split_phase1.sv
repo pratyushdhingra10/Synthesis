@@ -1,7 +1,7 @@
 module lexi_split_phase1 #(
     parameter E = 32,          // Number of experts
     parameter P = 64,          // Total PEs
-    parameter LAT_WIDTH = 16,  // Bit-width for latency values
+    parameter LAT_WIDTH = 24,  // Bit-width for latency values
     parameter PE_WIDTH = 7     // Bit-width for PE count (up to 64)
 )(
     input  logic                 clk,
@@ -14,14 +14,15 @@ module lexi_split_phase1 #(
     output logic [LAT_WIDTH-1:0] bottleneck_c     // C* output
 );
 
+    localparam int unsigned C_MIN = 100;
+    localparam int unsigned C_MAX = 8_781_696;
+
     // FSM States
     typedef enum logic [1:0] {IDLE, EVAL, CHECK, DONE} state_t;
-    state_t state, next_state;
+    state_t state;
 
     // Binary Search Registers
     logic [LAT_WIDTH-1:0] low, high, mid;
-    logic [LAT_WIDTH-1:0] c_min = 16'd100;   // Pre-calculated absolute min latency
-    logic [LAT_WIDTH-1:0] c_max = 16'd60000; // Pre-calculated absolute max latency
     
     // Parallel EEU outputs
     logic [PE_WIDTH-1:0] r_needed [0:E-1];
@@ -50,18 +51,23 @@ module lexi_split_phase1 #(
         if (!rst_n) begin
             state <= IDLE;
             done <= 1'b0;
+            low <= '0;
+            high <= '0;
+            mid <= '0;
+            bottleneck_c <= '0;
+            alloc_r <= '{default:'0};
         end else begin
             case (state)
                 IDLE: begin
                     done <= 1'b0;
                     if (start) begin
-                        low <= c_min;
-                        high <= c_max;
+                        low <= LAT_WIDTH'(C_MIN);
+                        high <= LAT_WIDTH'(C_MAX);
                         state <= EVAL;
                     end
                 end
                 EVAL: begin
-                    mid <= (low + high) >> 1;
+                    mid <= low + ((high - low) >> 1);
                     state <= CHECK;
                 end
                 CHECK: begin
@@ -80,6 +86,10 @@ module lexi_split_phase1 #(
                 DONE: begin
                     done <= 1'b1;
                     state <= IDLE;
+                end
+                default: begin
+                    state <= IDLE;
+                    done <= 1'b0;
                 end
             endcase
         end
