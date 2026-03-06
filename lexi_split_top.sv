@@ -16,11 +16,12 @@ module lexi_split_top #(
 
     // Phase-2 wrapper is built as a P-stage pipeline.
     localparam int R_MAX = P;
+    localparam int SUM_W = PE_WIDTH + ((E > 1) ? $clog2(E) : 0);
 
     // Interconnect signals between Phase 1 and Phase 2
     logic                 phase1_done;
     logic [PE_WIDTH-1:0]  alloc_r_star [0:E-1];
-    logic [PE_WIDTH+5:0]  sum_r_star;
+    logic [SUM_W-1:0]     sum_r_star;
     logic [PE_WIDTH:0]    R_leftover;
     
     // Shift register to delay the 'done' signal through the Phase 2 pipeline
