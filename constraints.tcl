@@ -1,7 +1,3 @@
-#adder_tree_32.sv
-#expert_eval_unit.sv
-#lexi_split_phase1.sv
-
 # -------------------------------------------------------------------------
 # LexiSplit RTL Synthesis Script
 # -------------------------------------------------------------------------
@@ -21,6 +17,17 @@ analyze -format sverilog {
 }
 elaborate lexi_split_top
 
+# tree          -> adder_tree_32 module
+# eval          -> expert_eval_unit module
+# PE_ALLOCATION -> lexi_split_phase1 module
+# phase2        -> greedy_stage + lexi_split_phase2 modules
+# top           -> lexi_split_top module
+
+# -------------------------------------------------------------------------
+# LexiSplit RTL Synthesis Script
+# -------------------------------------------------------------------------
+
+
 # 2. Clock Constraints (1.0 ns period = 1 GHz)
 create_clock -name clk -period 1.0 [get_ports clk]
 set_clock_uncertainty 0.05 [get_clocks clk]
@@ -28,9 +35,11 @@ set_clock_transition 0.05 [get_clocks clk]
 
 # 3. Input/Output Delay Constraints
 # Assume inputs arrive 0.2ns after the clock edge from upstream logic
-set_input_delay 0.2 -clock clk [all_inputs]
-# Remove input delay constraint from the clock port itself
-remove_input_delay [get_ports clk]
+set data_inputs [remove_from_collection [all_inputs] [get_ports {clk rst_n}]]
+set_input_delay 0.2 -clock clk $data_inputs
+
+# Async reset should not be part of synchronous setup/hold timing.
+set_false_path -from [get_ports rst_n]
 
 # Assume downstream logic requires the output 0.2ns before the next clock edge
 set_output_delay 0.2 -clock clk [all_outputs]
@@ -46,9 +55,11 @@ set_max_fanout 20 [current_design]
 compile_ultra
 
 # 6. Generate Reports for the Paper
+file mkdir reports
 report_timing > reports/timing_report.rpt
 report_area   > reports/area_report.rpt
 report_power  > reports/power_report.rpt
 
 # 7. Export Gate-Level Netlist
-write -format verilog -hierarchy -output gate_level/lexi_split_phase1_syn.v
+file mkdir gate_level
+write -format verilog -hierarchy -output gate_level/lexi_split_top_syn.v
