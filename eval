@@ -1,0 +1,51 @@
+module expert_eval_unit #(
+    parameter P = 64,          // Total PEs
+    parameter LAT_WIDTH = 16,
+    parameter PE_WIDTH = 7
+)(
+    input  logic [LAT_WIDTH-1:0] target_c,
+    input  logic [11:0]          tokens_t,
+    
+    output logic [PE_WIDTH-1:0]  req_p
+);
+
+    // Constant offset from the latency model
+    localparam int TAU = 63;
+    
+    // Array to hold the precomputed K(p) coefficients
+    // K(p) = ceil(1408/p) + ceil(704/p)
+    logic [11:0] K_coeff [1:P];
+    
+    // Combinational evaluation of L(p) <= target_c for all possible p
+    logic [P:1] meets_target;
+    logic [LAT_WIDTH-1:0] current_latency [1:P];
+
+    // Initialize the ROM with precomputed integer coefficients
+    // The synthesis tool will optimize this into hardwired constants
+    initial begin
+        for (int p = 1; p <= P; p++) begin
+            // SystemVerilog integer division truncates, so we simulate a ceiling function: ceil(a/b) = (a + b - 1) / b
+            K_coeff[p] = ((1408 + p - 1) / p) + ((704 + p - 1) / p);
+        end
+    end
+
+    // Parallel combinational multipliers
+    always_comb begin
+        for (int p = 1; p <= P; p++) begin
+            current_latency[p] = K_coeff[p] * (tokens_t + TAU);
+            meets_target[p] = (current_latency[p] <= target_c);
+        end
+    end
+
+    // Priority Encoder: Find the MINIMUM p that meets the target
+    // Because L(p) is strictly decreasing, the first '1' we find is our optimal r_i
+    always_comb begin
+        req_p = P + 1; // Default to infeasible (P + 1)
+        for (int p = P; p >= 1; p--) begin
+            if (meets_target[p]) begin
+                req_p = p; // Overwrites until it hits the lowest valid p
+            end
+        end
+    end
+
+endmodule
