@@ -16,6 +16,7 @@ module lexi_split_phase1 #(
 
     localparam int unsigned C_MIN = 100;
     localparam int unsigned C_MAX = 8_781_696;
+    localparam int SUM_W = PE_WIDTH + ((E > 1) ? $clog2(E) : 0);
 
     // FSM States
     typedef enum logic [1:0] {IDLE, EVAL, CHECK, DONE} state_t;
@@ -26,10 +27,13 @@ module lexi_split_phase1 #(
     
     // Parallel EEU outputs
     logic [PE_WIDTH-1:0] r_needed [0:E-1];
-    logic [PE_WIDTH+5:0] sum_r; // Adder tree output
+    logic [SUM_W-1:0] sum_r; // Adder tree output
 
     // Adder Tree Instantiation (Combinational)
-    adder_tree_32 #(.WIDTH(PE_WIDTH)) u_adder_tree (
+    adder_tree_32 #(
+        .WIDTH(PE_WIDTH),
+        .E(E)
+    ) u_adder_tree (
         .in_data(r_needed),
         .sum(sum_r)
     );
