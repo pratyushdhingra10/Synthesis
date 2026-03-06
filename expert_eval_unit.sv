@@ -1,6 +1,6 @@
 module expert_eval_unit #(
     parameter P = 64,          // Total PEs
-    parameter LAT_WIDTH = 16,
+    parameter LAT_WIDTH = 24,
     parameter PE_WIDTH = 7
 )(
     input  logic [LAT_WIDTH-1:0] target_c,
@@ -12,27 +12,23 @@ module expert_eval_unit #(
     // Constant offset from the latency model
     localparam int TAU = 63;
     
-    // Array to hold the precomputed K(p) coefficients
-    // K(p) = ceil(1408/p) + ceil(704/p)
-    logic [11:0] K_coeff [1:P];
-    
-    // Combinational evaluation of L(p) <= target_c for all possible p
+    localparam int K_WIDTH = 12;           // max K(p) is 2112 at p=1
+    localparam int TOKEN_TERM_WIDTH = 13;  // max tokens_t + TAU is 4158
+    localparam int LAT_CALC_WIDTH = K_WIDTH + TOKEN_TERM_WIDTH;
+
+    // Combinational evaluation of L(p) <= target_c for all possible p.
     logic [P:1] meets_target;
-    logic [LAT_WIDTH-1:0] current_latency [1:P];
+    logic [LAT_CALC_WIDTH-1:0] current_latency [1:P];
+    logic [TOKEN_TERM_WIDTH-1:0] token_term;
 
-    // Initialize the ROM with precomputed integer coefficients
-    // The synthesis tool will optimize this into hardwired constants
-    initial begin
-        for (int p = 1; p <= P; p++) begin
-            // SystemVerilog integer division truncates, so we simulate a ceiling function: ceil(a/b) = (a + b - 1) / b
-            K_coeff[p] = ((1408 + p - 1) / p) + ((704 + p - 1) / p);
-        end
-    end
-
-    // Parallel combinational multipliers
+    // Parallel combinational evaluation.
     always_comb begin
+        token_term = tokens_t + TAU;
         for (int p = 1; p <= P; p++) begin
-            current_latency[p] = K_coeff[p] * (tokens_t + TAU);
+            int unsigned k_coeff;
+            // ceil(a/b) = (a + b - 1) / b
+            k_coeff = ((1408 + p - 1) / p) + ((704 + p - 1) / p);
+            current_latency[p] = k_coeff * token_term;
             meets_target[p] = (current_latency[p] <= target_c);
         end
     end
