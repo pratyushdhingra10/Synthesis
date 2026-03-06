@@ -79,20 +79,28 @@ module lexi_split_top #(
     // -----------------------------------------------------------------
     // Phase 2 takes exactly R_MAX cycles to flush through its pipeline stages.
     // We delay the phase1_done signal to match this datapath delay.
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            done_shift_reg <= '0;
-            done <= 1'b0;
-        end else begin
-            // Shift left, injecting phase1_done at the LSB
-            done_shift_reg <= {done_shift_reg[R_MAX-2:0], phase1_done};
-            
-            // The final 'done' output is the MSB of the shift register
-            // Because phase1_done stays high until the next 'start', we use a 
-            // pulse detector (rising edge) or just pass it through depending on your handshake protocol.
-            // Here, we just pass the delayed level.
-            done <= done_shift_reg[R_MAX-1];
+    generate
+        if (R_MAX == 1) begin : gen_done_delay_1
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    done_shift_reg <= '0;
+                    done <= 1'b0;
+                end else begin
+                    done_shift_reg[0] <= phase1_done;
+                    done <= done_shift_reg[0];
+                end
+            end
+        end else begin : gen_done_delay_n
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    done_shift_reg <= '0;
+                    done <= 1'b0;
+                end else begin
+                    done_shift_reg <= {done_shift_reg[R_MAX-2:0], phase1_done};
+                    done <= done_shift_reg[R_MAX-1];
+                end
+            end
         end
-    end
+    endgenerate
 
 endmodule
